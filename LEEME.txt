@@ -1,0 +1,32 @@
+RED TEAM LAB
+============
+
+Laboratorio para aprender escalada de privilegios y pivoting (red team) en LINUX y WINDOWS,
+jugando, con aspecto de Kali. Tienes una shell en una maquina y aprendes a enumerar, pivotar
+y escalar hasta root (Linux) o SYSTEM (Windows).
+
+COMO ABRIRLO
+------------
+1. Descomprime este zip entero en una carpeta
+   (clic derecho > "Extraer todo"; no abras los archivos desde dentro del zip).
+2. Entra en la carpeta redteam_games y haz doble clic en index.html.
+3. Se abre en tu navegador. Arriba a la izquierda cambias entre Linux y Windows.
+
+QUE NECESITAS
+-------------
+- Un navegador actual: Chrome, Edge, Firefox, Brave o Safari.
+- Nada mas. No hay que instalar nada y funciona sin Internet.
+- Mejor en ordenador que en movil: hay que escribir.
+
+ES UN SIMULADOR Y ES LEGAL
+--------------------------
+La maquina, el sistema de archivos y TODAS las tecnicas son simuladas. Ninguna funciona fuera
+de esta pagina: no hay exploits reales ni se ataca a nadie. Es material de estudio, como una
+sala de TryHackMe o HackTheBox, pero de mentira. Usa estas tecnicas en la vida real SOLO sobre
+maquinas tuyas o con permiso por escrito.
+
+SI ALGO NO VA
+-------------
+- Se ve sin colores o no responde: no lo has descomprimido, o has movido index.html fuera de
+  su carpeta. Tiene que estar junto a las carpetas css y js.
+- Tu progreso se guarda en tu navegador. Para borrarlo: boton "Empezar de cero".

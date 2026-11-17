@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Seguridad: solo se ejecuta y se carga lo de esta misma web; nada sale hacia fuera. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Red Team Lab</title>
+  <meta name="description" content="Aprende escalada de privilegios y pivoting (red team) en un laboratorio simulado en el navegador: misiones, contrarreloj y caza de banderas.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">#_</span>
+      <div>
+        <strong>Red Team Lab</strong>
+        <small>de una shell a root, paso a paso</small>
+      </div>
+    </div>
+
+    <button class="hud" id="hud" type="button" title="Ver rangos y logros">
+      <span class="hud-level" id="hudLevel">1</span>
+      <span class="hud-info">
+        <span class="hud-row"><b id="hudRank">Novato</b><small id="hudXp">0 XP</small></span>
+        <span class="bar"><i id="hudFill"></i></span>
+      </span>
+    </button>
+
+    <button class="btn" id="btnTrophy" type="button">🏆 <span id="badgeCount">0/10</span></button>
+    <button class="btn" id="btnCheat" type="button">Chuleta</button>
+    <button class="btn icon" id="btnTheme" type="button" aria-label="Cambiar entre tema oscuro y claro" title="Tema oscuro / claro">🌗</button>
+  </header>
+
+  <main class="layout">
+    <nav id="sidebar" aria-label="Misiones y juegos"></nav>
+
+    <section id="lesson">
+      <div class="buddy" id="buddy">
+        <svg viewBox="0 0 64 66" aria-hidden="true">
+          <path class="px-body" d="M11 36c-6 4-7 13-4 17l6-8zM53 36c6 4 7 13 4 17l-6-8z"/>
+          <ellipse class="px-body" cx="32" cy="36" rx="21" ry="25"/>
+          <ellipse cx="32" cy="43" rx="13.500" ry="16" fill="#fff"/>
+          <circle cx="24.500" cy="24" r="6" fill="#fff"/>
+          <circle cx="39.500" cy="24" r="6" fill="#fff"/>
+          <circle class="px-eye" cx="26" cy="25" r="2.600"/>
+          <circle class="px-eye" cx="38" cy="25" r="2.600"/>
+          <path d="M26.500 31.500h11L32 38z" fill="#ff8a3d"/>
+          <ellipse cx="23" cy="61.500" rx="7.500" ry="3.200" fill="#ff8a3d"/>
+          <ellipse cx="41" cy="61.500" rx="7.500" ry="3.200" fill="#ff8a3d"/>
+        </svg>
+        <p class="bubble" id="say" aria-live="polite"></p>
+      </div>
+      <div id="panel"></div>
+    </section>
+
+    <section class="work">
+      <div class="term" id="term">
+        <div class="term-bar">
+          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="term-title" id="termTitle">estudiante@ubuntu: ~</span>
+          <button class="term-btn" id="btnReset" type="button" title="Deja la terminal y los archivos como al principio">Reiniciar</button>
+        </div>
+        <div class="term-body" id="termBody">
+          <div id="termOut"></div>
+          <label class="term-line">
+            <span id="prompt"></span>
+            <input id="termIn" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Escribe una orden">
+          </label>
+        </div>
+      </div>
+
+      <div class="explorer">
+        <div class="exp-bar">
+          <strong>Explorador</strong>
+          <span class="crumbs" id="crumbs"></span>
+          <label class="hidden-toggle"><input type="checkbox" id="showHidden"> <span id="lblHidden">ocultos</span></label>
+        </div>
+        <div class="tree" id="tree"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="cheat" class="dlg">
+    <div class="dlg-head">
+      <strong>Chuleta de órdenes</strong>
+      <input id="cheatSearch" type="search" placeholder="Buscar: copiar, permisos, grep…" aria-label="Buscar en la chuleta">
+      <button class="btn icon dlg-close" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="dlg-body" id="cheatBody"></div>
+  </dialog>
+
+  <dialog id="trophy" class="dlg">
+    <div class="dlg-head">
+      <strong>Rangos y logros</strong>
+      <span class="grow"></span>
+      <button class="btn icon dlg-close" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="dlg-body" id="trophyBody"></div>
+  </dialog>
+
+  <div class="nano" id="nano" hidden>
+    <div class="nano-win" role="dialog" aria-label="Editor nano">
+      <div class="nano-head"><span>GNU nano</span><span id="nanoFile"></span><span id="nanoState"></span></div>
+      <textarea id="nanoText" spellcheck="false" aria-label="Contenido del archivo"></textarea>
+      <div class="nano-msg" id="nanoMsg"></div>
+      <div class="nano-keys">
+        <button type="button" id="nanoSave"><kbd>^O</kbd> Guardar</button>
+        <button type="button" id="nanoExit"><kbd>^X</kbd> Salir</button>
+        <span>En nano, ^ significa la tecla Ctrl.</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="toasts" aria-live="polite"></div>
+
+  <script src="js/fs.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/shell3.js"></script>
+  <script src="js/shell4.js"></script>
+  <script src="js/redteam.js"></script>
+  <script src="js/winshell.js"></script>
+  <script src="js/lessons.js"></script>
+  <script src="js/games.js"></script>
+  <script src="js/winlessons.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
