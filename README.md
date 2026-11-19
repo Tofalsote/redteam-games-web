@@ -50,3 +50,7 @@ Windows es el panel **Sesión** (usuario, nivel de integridad y privilegios de t
 
 Es un simulador educativo: reconoce las técnicas correctas y reacciona, pero no ejecuta nada real.
 El progreso se guarda en el navegador de cada persona (`localStorage`).
+
+## Puntos y rangos
+
+Puntos y rangos: el último rango llega al terminarlo todo jugando bien; repetir un juego solo suma si mejoras tu récord. Y hay un logro oculto para quien lo complete al 100 %.

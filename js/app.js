@@ -24,7 +24,7 @@
     const ms = LESSONS.filter((l) => !l.mode && osOf(l) === world);
     const nums = [...new Set(ms.map((l) => l.level || 1))].sort((a, b) => a - b);
     LEVELS = nums.map((n) => ({ n, os: world, name: (LVL_NAMES[world] || {})[n] || 'Nivel ' + n, list: ms.filter((l) => (l.level || 1) === n) }));
-    for (const lv of LEVELS) lv.games = LESSONS.filter((l) => (l.mode === 'arcade' || l.mode === 'ctf') && osOf(l) === world && gnum(l) === lv.n);
+    for (const lv of LEVELS) lv.games = LESSONS.filter((l) => (l.mode === 'arcade' || l.mode === 'ctf' || l.mode === 'play') && osOf(l) === world && gnum(l) === lv.n);
     MISSIONS = LEVELS.reduce((a, lv) => a.concat(lv.list), []);
   }
   const levelOf = (l) => LEVELS.find((lv) => lv.list.includes(l)) || LEVELS[0];
@@ -57,12 +57,6 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
   const strip = (s) => s.replace(/\x01.|\x02/g, '');
-  /* La CSP no deja estilos en línea dentro del HTML: la sangría del árbol (data-d) y el
-     ancho de las barras (data-w) se aplican desde aquí cada vez que se pinta un panel. */
-  function dataStyles(root) {
-    for (const x of root.querySelectorAll('[data-d]')) x.style.setProperty('--d', x.dataset.d);
-    for (const x of root.querySelectorAll('[data-w]')) x.style.width = x.dataset.w + '%';
-  }
 
   /* El almacenamiento del navegador puede no estar disponible: la página funciona igual sin él. */
   const store = {
@@ -103,15 +97,16 @@
     lock: '<svg class="lock" viewBox="0 0 16 16" aria-label="sin permiso"><path d="M5 7V5a3 3 0 0 1 6 0v2h.5A1.5 1.5 0 0 1 13 8.5v4a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 12.5v-4A1.5 1.5 0 0 1 4.5 7zm1.500 0h3V5a1.500 1.500 0 0 0-3 0z"/></svg>',
   };
 
+  /* umbrales escalados para que el último rango (≈85 % del XP máximo, 3870 sin contar el contrarreloj) llegue al terminarlo todo jugando bien */
   const RANKS = [
     [0, 'Script kiddie'],
-    [120, 'Curioso'],
-    [300, 'Pentester jr.'],
-    [550, 'Operador'],
-    [850, 'Red teamer'],
-    [1200, 'root'],
-    [1700, 'Fantasma'],
-    [2300, 'Leyenda'],
+    [170, 'Curioso'],
+    [430, 'Pentester jr.'],
+    [790, 'Operador'],
+    [1220, 'Red teamer'],
+    [1720, 'root'],
+    [2440, 'Fantasma'],
+    [3300, 'Leyenda'],
   ];
 
 
@@ -173,7 +168,7 @@
     $('#hudRank').textContent = RANKS[i][1];
     $('#hudXp').textContent = next ? `${xp} / ${next[0]} XP` : `${xp} XP`;
     $('#hudFill').style.width = (next ? ((xp - RANKS[i][0]) / (next[0] - RANKS[i][0])) * 100 : 100) + '%';
-    $('#badgeCount').textContent = `${badges.size}/${BADGES.length}`;
+    $('#badgeCount').textContent = badges.has('secreto') ? `${BADGES.length}/${BADGES.length} + ${SECRET.icon}` : `${BADGES.filter((x) => badges.has(x.id)).length}/${BADGES.length}`;
   }
 
   function addXp(n) {
@@ -192,14 +187,32 @@
     }
   }
 
+  /* logro oculto: no aparece en la lista ni en el contador hasta conseguirlo */
+  const SECRET = { id: 'secreto', icon: '👑', name: 'Domain Admin', how: 'Lo has completado absolutamente todo: todas las misiones, todos los juegos y todos los logros. La red entera es tuya (en el laboratorio).', ref: 'Logro oculto' };
+  function checkSecret() {
+    if (badges.has(SECRET.id)) return;
+    const allMissions = LESSONS.filter((l) => !l.mode).every((l) => done.has(l.id));
+    const allGames = LESSONS.filter((l) => l.mode === 'play' || l.mode === 'ctf').every((l) => l.mode === 'ctf' ? setOf(l).flags.every((f) => flags.has(f.id)) : done.has(l.id));
+    const allBadges = BADGES.every((x) => badges.has(x.id));
+    if (!(allMissions && allGames && allBadges)) return;
+    badges.add(SECRET.id);
+    store.set('rt.badges', [...badges]);
+    setTimeout(() => {
+      toast(SECRET.icon, '¡Logro oculto desbloqueado!', SECRET.name);
+      confetti(160);
+      say('¡Lo has completado TODO! Mira tus logros: hay uno que nadie más ve.', 'happy');
+      addXp(100);
+    }, 900);
+  }
   function award(id) {
     if (badges.has(id)) return;
     const b = BADGES.find((x) => x.id === id);
-    if (!b) return; // logro heredado de Linux Games que aquí no existe (p. ej. 'nano')
+    if (!b) return;
     badges.add(id);
     store.set('rt.badges', [...badges]);
     toast(b.icon, 'Logro desbloqueado', b.name);
     addXp(20);
+    checkSecret();
   }
 
   function toast(icon, title, text) {
@@ -448,7 +461,7 @@
       if (name[0] === '.') cls.push('dot');
       if (!dir && n.mode & 0o111) cls.push('exec');
       rows.push(
-        `<div class="${cls.join(' ')}" data-path="${esc(path)}" data-dir="${dir ? 1 : 0}" data-d="${depth}" ` +
+        `<div class="${cls.join(' ')}" data-path="${esc(path)}" data-dir="${dir ? 1 : 0}" style="--d:${depth}" ` +
           `title="${modeStr(n)}  ${esc(n.owner)}:${esc(n.group)}">` +
           `<span class="caret">${dir && !locked ? '▸' : ''}</span>` +
           `<span class="ico">${dir ? ICON.dir : ICON.file}</span>` +
@@ -466,7 +479,6 @@
     };
     walk('/', '/', fs.root, 0);
     el.tree.innerHTML = rows.join('');
-    dataStyles(el.tree);
     known = all;
 
     const parts = cwd.split('/').filter(Boolean);
@@ -510,6 +522,10 @@
     };
     const gameSub = (l) => {
       const best = store.get(bestKey(l), 0);
+      if (l.mode === 'play') {
+        const pb = store.get('rt.pbest.' + l.id, null);
+        return pb == null ? l.tag : `Mejor: ${pb} %`;
+      }
       return l.mode === 'arcade' ? (best ? `Récord: ${best}` : l.tag) : `${gotFlags(l)}/${setOf(l).flags.length} banderas`;
     };
     el.sidebar.innerHTML =
@@ -571,6 +587,7 @@
   }
 
   function renderPanel() {
+    if (lesson.mode === 'play') return renderPlay();
     if (lesson.mode === 'arcade') return renderArcade();
     if (lesson.mode === 'ctf') return renderCtf();
     renderLesson();
@@ -588,7 +605,7 @@
       const pct = (Math.min(stepIdx, lesson.steps.length) / lesson.steps.length) * 100;
       html +=
         `<h2 class="steps-title">Tu turno <span>${Math.min(stepIdx, lesson.steps.length)} / ${lesson.steps.length}</span>` +
-        `<i class="mini-bar"><i data-w="${pct}"></i></i></h2><ol class="steps">`;
+        `<i class="mini-bar"><i style="width:${pct}%"></i></i></h2><ol class="steps">`;
       lesson.steps.forEach((s, k) => {
         const st = k < stepIdx ? 'done' : k === stepIdx ? 'current' : 'todo';
         html += `<li class="${st}"><span class="mk">${k < stepIdx ? '✓' : k + 1}</span><div><p>${s.t}</p>`;
@@ -612,13 +629,13 @@
         '</div></div>';
     }
     el.panel.innerHTML = html;
-    dataStyles(el.panel);
     if (lesson.widget === 'perms') renderPerms();
     const cur = el.panel.querySelector('.steps .current, .finish');
     if (cur && stepIdx > 0) cur.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   el.panel.addEventListener('click', (e) => {
+    if (!e.target.isConnected || e.target.closest('.play-root')) return; /* los juegos gestionan sus propios botones */
     if (e.target.id === 'btnHint') {
       hintShown = true;
       usedHint = true;
@@ -672,6 +689,7 @@
       say('¡Misión superada! Eres una máquina.', 'happy');
       confetti(90);
       if (fresh) addXp(gain + 50);
+      setTimeout(checkSecret, 50);
       if (!usedHint) award('nohint');
       if (LESSONS.filter((l) => !l.mode && osOf(l) === 'linux').every((l) => done.has(l.id))) award('linuxdone');
       if (LESSONS.filter((l) => !l.mode && osOf(l) === 'windows').every((l) => done.has(l.id))) award('windone');
@@ -799,7 +817,12 @@
     print(`⏱ ¡Tiempo! ${arc.score} puntos.`, 'ok');
     say(arc.record ? '¡Nuevo récord! Enséñaselo a alguien.' : arc.hits ? 'Nada mal. ¿Otra para superarte?' : 'El primero siempre cuesta. Repasa una misión y vuelve.', arc.hits ? 'happy' : '');
     if (arc.record) confetti(90);
-    addXp(arc.hits * 5);
+    /* XP solo por lo que superas tu récord de aciertos: repetir no sube de rango */
+    const hitsBest = store.get(bestKey(lesson) + 'h', 0);
+    if (arc.hits > hitsBest) {
+      store.set(bestKey(lesson) + 'h', arc.hits);
+      addXp((arc.hits - hitsBest) * 5);
+    }
     if (arc.hits >= 8) award('speed');
     renderArcade();
     renderSidebar();
@@ -881,11 +904,71 @@
     renderTree();
   }
 
+  /* ---------- juegos propios («play») ---------- */
+  let playCleanup = null;
+  function renderPlay() {
+    const g = window.PLAY && window.PLAY[lesson.game];
+    const id = lesson.id;
+    el.panel.innerHTML =
+      `<div class="kicker">Zona de juego · ${esc(lesson.tag)}</div><h1>${esc(lesson.title)}</h1>` +
+      `<div class="pl-bar"><span>${(() => { const pb = store.get('rt.pbest.' + id, null); return pb == null ? 'Sin jugar' : 'Tu mejor nota: ' + pb + ' %'; })()}</span><button type="button" class="link" id="plRestart">↻ Reiniciar</button></div>` +
+      '<div class="play-root" id="playRoot"></div>';
+    $('#plRestart').addEventListener('click', () => {
+      if (playCleanup) {
+        try {
+          playCleanup();
+        } catch (e) {}
+        playCleanup = null;
+      }
+      renderPlay();
+    });
+    if (!g) {
+      $('#playRoot').textContent = 'Este juego no se ha cargado.';
+      return;
+    }
+    const api = {
+      say,
+      award,
+      esc,
+      confetti,
+      store: { get: (k, d) => store.get('rt.p.' + id + '.' + k, d), set: (k, v) => store.set('rt.p.' + id + '.' + k, v) },
+      /* nota de 0 a 100: da XP solo por lo que mejoras tu mejor nota (hasta 100) y 20 la primera vez */
+      done(score, msg) {
+        score = Math.max(0, Math.min(100, Math.round(score)));
+        const prev = store.get('rt.pbest.' + id, null);
+        if (prev == null || score > prev) {
+          store.set('rt.pbest.' + id, score);
+          addXp(score - (prev || 0) + (prev == null ? 20 : 0));
+        }
+        if (score >= 60 && !done.has(id)) {
+          done.add(id);
+          store.set('rt.done', [...done]);
+        }
+        if (msg) say(msg, score >= 60 ? 'happy' : 'oops');
+        if (score >= 100) confetti(90);
+        renderSidebar();
+        setTimeout(checkSecret, 50);
+      },
+      onLeave: (fn) => (playCleanup = fn),
+    };
+    g.mount($('#playRoot'), api);
+    /* los clics del juego no llegan a los atajos del panel (data-next, etc.) */
+    $('#playRoot').addEventListener('click', (e) => e.stopPropagation());
+    $('#playRoot').addEventListener('keydown', (e) => e.stopPropagation());
+  }
+
   function startLesson(id) {
+    if (playCleanup) {
+      try {
+        playCleanup();
+      } catch (e) {}
+      playCleanup = null;
+    }
     arcStop();
     arc = null;
     $('#nano').hidden = true;
     lesson = LESSONS.find((l) => l.id === id) || LESSONS[0];
+    document.body.classList.toggle('playing', lesson.mode === 'play');
     world = osOf(lesson);
     rebuildLevels();
     store.set('rt.world', world);
@@ -992,6 +1075,7 @@
       '<div class="ranks">' +
       RANKS.map(([min, name], k) => `<div class="${k < i ? 'past' : k === i ? 'now' : ''}"><b>${k + 1}</b><span>${name}</span><small>${min} XP</small></div>`).join('') +
       '</div><div class="badge-grid">' +
+      (badges.has(SECRET.id) ? `<article class="on secret"><span>${SECRET.icon}</span><b>${esc(SECRET.name)}</b><small>${esc(SECRET.how)}</small></article>` : '') +
       BADGES.map(
         (b) => `<article class="${badges.has(b.id) ? 'on' : ''}"><span>${badges.has(b.id) ? b.icon : '🔒'}</span><b>${esc(b.name)}</b><small>${esc(b.how)}</small></article>`
       ).join('') +
@@ -1080,10 +1164,7 @@
     return s;
   }
   const trEl = (e) => {
-    if (lang !== 'en' || !e) return;
-    for (const x of e.querySelectorAll('[style]')) x.removeAttribute('style'); // si no, la CSP los bloquea al volver a leerlos
-    e.innerHTML = tr(e.innerHTML);
-    dataStyles(e);
+    if (lang === 'en' && e) e.innerHTML = tr(e.innerHTML);
   };
 
   function applyLang() {
